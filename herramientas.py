@@ -1,44 +1,42 @@
 import random
+from datetime import datetime
+import pytz
 
-def generar_ensayo_unico(tema, texto_investigado):
-    if len(texto_investigado) < 50:
-        return f"Lo siento, Ronaldo, no encontré suficiente información sobre '{tema}' para un ensayo."
-
-    oraciones = [o.strip() for o in texto_investigado.split('.') if len(o) > 30]
+def generar_ensayo_unico(tema, info):
+    if len(info) < 50: return "No hay info suficiente para un ensayo."
+    oraciones = [o.strip() for o in info.split('.') if len(o) > 30]
     random.shuffle(oraciones)
-
-    intros = [
-        f"El estudio de {tema} representa un desafío intelectual en la era moderna.",
-        f"Hablar de {tema} es adentrarse en un mundo de descubrimientos constantes.",
-        f"Pocas cosas han impactado tanto nuestra visión actual como lo ha hecho {tema}."
-    ]
     
-    conector = ["Además,", "Por otra parte,", "En este sentido,", "Resulta interesante que"]
+    intros = [f"El impacto de {tema} es innegable hoy.", f"Analizar {tema} nos permite entender el futuro."]
+    cuerpo = ". ".join(oraciones[:3])
     
-    cuerpo = ""
-    # Usamos máximo 3 oraciones de la investigación para el cuerpo
-    for i in range(min(len(oraciones), 3)):
-        cuerpo += f"{random.choice(conector)} {oraciones[i].lower()}. "
+    return f"## 📜 ENSAYO: {tema.upper()}\n{random.choice(intros)}\n\n{cuerpo}.\n\n*Redactado por kAI (ID: {random.randint(100,999)})*"
 
-    return f"""## 📜 Ensayo: {tema.upper()}
-{random.choice(intros)}
+def generar_resumen_dinamico(info):
+    puntos = [i.strip() for i in info.split('.') if len(i) > 25]
+    res = "### 💡 PUNTOS CLAVE\n"
+    for p in random.sample(puntos, min(len(puntos), 4)):
+        res += f"* {p}\n"
+    return res
 
-{cuerpo}
+def resolver_mates(exp):
+    try:
+        f = exp.replace("mas","+").replace("menos","-").replace("por","*").replace("entre","/")
+        problema = "".join(c for c in f if c in "0123456789+-*/().")
+        return eval(problema)
+    except: return None
 
-En conclusión, este análisis demuestra que {tema} seguirá siendo un pilar fundamental para el entendimiento de nuestra realidad actual.
-___
-*ID de Redacción única: {random.randint(1000, 9999)} | By Ronaldo*"""
+def obtener_recomendacion():
+    h = datetime.now().hour
+    if h < 12: return "🌅 Mañana productiva: ¡Prioriza tus tareas hoy!"
+    if h < 18: return "☀️ Tarde activa: No olvides hidratarte mientras investigas."
+    return "🌙 Noche de relax: Buen momento para leer tus ensayos generados."
 
-def generar_resumen_dinamico(texto_investigado):
-    """Esta es la función que daba el error. Asegúrate que el nombre sea idéntico."""
-    if not texto_investigado:
-        return "No hay datos para resumir."
-    
-    ideas = [i.strip() for i in texto_investigado.split('.') if len(i) > 25]
-    # Seleccionamos 4 puntos al azar para que sea único
-    puntos_clave = random.sample(ideas, min(len(ideas), 4))
-    
-    resumen = "### 💡 Puntos Clave Extraídos\n"
-    for p in puntos_clave:
-        resumen += f"* {p}\n"
-    return resumen
+def traducir_auto(texto, idioma):
+    dic = {
+        "en": {"hi": "Hello! I'm kAI.", "bye": "Success in your research!"},
+        "ko": {"hi": "안녕하세요! kAI입니다.", "bye": "행운을 빕니다!"}
+    }
+    if idioma in dic:
+        return f"{dic[idioma]['hi']}\n\n{texto}\n\n{dic[idioma]['bye']}"
+    return texto

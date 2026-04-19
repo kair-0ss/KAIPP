@@ -1,134 +1,83 @@
 import streamlit as st
 import time
-import requests
-from duckduckgo_search import DDGS
-import wikipedia
+from datetime import datetime
+import pytz
+import motores_busqueda as mb
+import herramientas as hr
 
-# --- CONFIGURACIÓN E INNOVACIÓN VISUAL ---
-st.set_page_config(page_title="kAI | Intelligence", page_icon="✨", layout="centered")
-
-# CSS para una interfaz única tipo "Glassmorphism"
+# --- CONFIGURACIÓN DARK PREMIUM ---
+st.set_page_config(page_title="kAI Ultra", page_icon="⚡")
 st.markdown("""
     <style>
-    /* Fondo principal oscuro profundo */
-    .stApp {
-        background: radial-gradient(circle at top right, #1e1e2e, #11111b);
-        color: #cdd6f4;
-    }
-    
-    /* Personalización del Chat Input */
-    .stChatInputContainer {
-        padding-bottom: 20px;
-        background-color: transparent !important;
-    }
-    
-    .stChatInputContainer > div {
-        background-color: #1e1e2e !important;
-        border: 1px solid #45475a !important;
-        border-radius: 25px !important;
-    }
-
-    /* Burbujas de chat únicas */
-    .stChatMessage {
-        background-color: #181825 !important;
-        border: 1px solid #313244 !important;
-        border-radius: 20px !important;
-        margin-bottom: 15px !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-
-    /* Ocultar elementos de Streamlit */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-
-    /* Animación del Loader */
-    .loading-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 80vh;
-    }
-    .pulse {
-        width: 80px;
-        height: 80px;
-        background: #89b4fa;
-        border-radius: 50%;
-        box-shadow: 0 0 0 0 rgba(137, 180, 250, 0.7);
-        animation: pulse-blue 2s infinite;
-    }
-    @keyframes pulse-blue {
-        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(137, 180, 250, 0.7); }
-        70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(137, 180, 250, 0); }
-        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(137, 180, 250, 0); }
-    }
+    .stApp { background: radial-gradient(circle, #1a1a2e, #16161d); color: white; }
+    .stChatInputContainer { padding-bottom: 20px; }
+    #MainMenu, footer, header {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
-import streamlit as st
-import time
-import motores_busqueda 
-import herramientas      
 
-# --- CONFIGURACIÓN E INTERFAZ ---
-st.set_page_config(page_title="kAI | Unificado", page_icon="🤖")
+# --- PANTALLA DE CARGA ---
+if 'ready' not in st.session_state:
+    with st.empty():
+        st.markdown("<div style='text-align:center;margin-top:35vh;'><h1 style='letter-spacing:10px;font-weight:100;'>kAI</h1><p>BY: RONALDO</p></div>", unsafe_allow_html=True)
+        time.sleep(2.5)
+    st.session_state.ready = True
+    st.rerun()
 
-# (Mantenemos el CSS anterior de modo oscuro y pantalla de carga)
+# --- LÓGICA DEL CHAT ---
+st.title("⚡ kAI Intelligence")
 
-st.title("🤖 kAI v2.0")
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# Mostrar historial
+if "messages" not in st.session_state: st.session_state.messages = []
 for m in st.session_state.messages:
     with st.chat_message(m["role"]): st.markdown(m["content"])
 
-# --- PROCESAMIENTO DEL MENSAJE ---
-if prompt := st.chat_input("Dime algo..."):
+if prompt := st.chat_input("Escribe aquí..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"): st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        p_low = prompt.lower()
-        saludos = ["hola", "buenos dias", "buenas tardes", "que tal", "quien eres"]
-        
-        # 1. RESPUESTA A SALUDOS
-        if any(s in p_low for s in saludos):
-            respuesta = "¡Hola! Soy **kAI**, tu asistente de investigación desarrollado por **Ronaldo**. Puedo buscar en Wikipedia, la web y artículos científicos para redactar ensayos o resúmenes únicos. ¿En qué puedo ayudarte hoy?"
-            st.markdown(respuesta)
-            st.session_state.messages.append({"role": "assistant", "content": respuesta})
+        p = prompt.lower()
+        res = ""
+        idioma = "en" if any(x in p for x in ["hello", "how", "what"]) else "ko" if any(x in p for x in ["안녕", "시간"]) else "es"
 
-        # 2. GENERACIÓN DE ENSAYO / INVESTIGACIÓN ÚNICA
-        elif "ensayo" in p_low or "redacta" in p_low or "investiga" in p_low:
-            tema = p_low.replace("ensayo", "").replace("redacta", "").replace("investiga", "").strip()
-            
-            with st.status(f"Generando respuesta unificada sobre {tema}...") as s:
-                st.write("Consultando múltiples motores...")
-                # USAMOS LA NUEVA FUNCIÓN UNIFICADA
-                info_total = motores_busqueda.buscar_y_unificar(tema)
-                
-                st.write("Sintetizando información única...")
-                if "ensayo" in p_low:
-                    resultado = herramientas.generar_ensayo_unico(tema, info_total)
-                else:
-                    resultado = herramientas.generar_resumen_dinamico(info_total)
-                
-                s.update(label="Análisis completado", state="complete")
-            
-            # Efecto de escritura pro
-            area = st.empty()
-            txt = ""
-            for char in resultado:
-                txt += char
-                area.markdown(txt)
-                time.sleep(0.003)
-            st.session_state.messages.append({"role": "assistant", "content": resultado})
+        # 1. SALUDOS
+        if any(s in p for s in ["hola", "buenos", "quien eres", "hello", "안녕"]):
+            res = "¡Hola! Soy kAI, tu asistente multifuncional creado por Ronaldo. Investigo, redacto ensayos, resuelvo mates y hablo idiomas."
 
-        # 3. RESPUESTA POR DEFECTO
+        # 2. MATEMÁTICAS
+        elif any(c in p for c in "0123456789") and any(op in p for op in ["+","-","*","/","cuanto"]):
+            mate = hr.resolver_mates(p)
+            res = f"🔢 Resultado: **{mate}**" if mate else "No pude calcular eso."
+
+        # 3. HORA MUNDIAL
+        elif "hora en" in p:
+            zona = "Europe/Madrid" if "madrid" in p else "Asia/Tokyo" if "tokio" in p else "America/New_York" if "york" in p else "America/Caracas"
+            h = datetime.now(pytz.timezone(zona)).strftime("%H:%M:%S")
+            res = f"🕒 Hora en esa zona: **{h}**"
+
+        # 4. RECOMENDACIÓN
+        elif "recomienda" in p or "que hago" in p:
+            res = hr.obtener_recomendacion()
+
+        # 5. INVESTIGACIÓN / ENSAYO / LISTAS
         else:
-            with st.spinner("Buscando en la red..."):
-                info = motores_busqueda.buscar_y_unificar(prompt)
-                res = f"Aquí tienes una síntesis de lo que encontré:\n\n{info[:700]}..." if info else "No tengo info sobre eso."
-                st.markdown(res)
-                st.session_state.messages.append({"role": "assistant", "content": res})
+            with st.status("🔍 Investigando en múltiples fuentes...") as s:
+                info = mb.buscar_y_unificar(p)
+                if "ensayo" in p:
+                    res = hr.generar_ensayo_unico(p, info)
+                elif "lista" in p or "resumen" in p:
+                    res = hr.generar_resumen_dinamico(info)
+                else:
+                    res = f"Análisis rápido:\n\n{info[:600]}..."
+                s.update(label="Proceso completado", state="complete")
+
+        # TRADUCCIÓN Y SALIDA
+        res = hr.traducir_auto(res, idioma)
+        
+        # Efecto escritura
+        area = st.empty()
+        curr = ""
+        for c in res:
+            curr += c
+            area.markdown(curr)
+            time.sleep(0.002)
+        st.session_state.messages.append({"role": "assistant", "content": res})

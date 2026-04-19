@@ -2,3 +2,4 @@ streamlit
 duckduckgo-search
 wikipedia
 requests
+pytz
