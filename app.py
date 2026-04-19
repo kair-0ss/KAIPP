@@ -65,85 +65,70 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
 import streamlit as st
 import time
-from duckduckgo_search import DDGS
-import wikipedia
-import herramientas # Tu archivo con la lógica única
+import motores_busqueda 
+import herramientas      
 
-# ... (Configuración de página, CSS y pantalla de carga se mantienen igual) ...
+# --- CONFIGURACIÓN E INTERFAZ ---
+st.set_page_config(page_title="kAI | Unificado", page_icon="🤖")
 
-# --- FUNCIÓN DE INVESTIGACIÓN ---
-def investigar(query):
-    contexto = ""
-    try:
-        wikipedia.set_lang("es")
-        contexto += wikipedia.summary(query, sentences=3) + "\n"
-    except: pass
-    try:
-        with DDGS() as ddgs:
-            results = [r for r in ddgs.text(query, max_results=3)]
-            for r in results: contexto += r['body'] + " "
-    except: pass
-    return contexto
+# (Mantenemos el CSS anterior de modo oscuro y pantalla de carga)
 
-# --- INTERFAZ DE CHAT ---
-st.title("🤖 kAI")
-st.caption("Investigación y Redacción Automática")
+st.title("🤖 kAI v2.0")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # Mostrar historial
 for m in st.session_state.messages:
-    with st.chat_message(m["role"]):
-        st.markdown(m["content"])
+    with st.chat_message(m["role"]): st.markdown(m["content"])
 
-# Entrada de usuario
-if prompt := st.chat_input("¿Qué necesitas? (Ej: Hazme un ensayo sobre la Luna)"):
+# --- PROCESAMIENTO DEL MENSAJE ---
+if prompt := st.chat_input("Dime algo..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    with st.chat_message("user"): st.markdown(prompt)
 
     with st.chat_message("assistant"):
         p_low = prompt.lower()
+        saludos = ["hola", "buenos dias", "buenas tardes", "que tal", "quien eres"]
         
-        # 1. DETECCIÓN DE INTENCIÓN: ¿Quiere un ensayo?
-        if "ensayo" in p_low or "redacta" in p_low:
-            tema = p_low.replace("hazme un ensayo sobre", "").replace("ensayo sobre", "").replace("haz un ensayo de", "").strip()
+        # 1. RESPUESTA A SALUDOS
+        if any(s in p_low for s in saludos):
+            respuesta = "¡Hola! Soy **kAI**, tu asistente de investigación desarrollado por **Ronaldo**. Puedo buscar en Wikipedia, la web y artículos científicos para redactar ensayos o resúmenes únicos. ¿En qué puedo ayudarte hoy?"
+            st.markdown(respuesta)
+            st.session_state.messages.append({"role": "assistant", "content": respuesta})
+
+        # 2. GENERACIÓN DE ENSAYO / INVESTIGACIÓN ÚNICA
+        elif "ensayo" in p_low or "redacta" in p_low or "investiga" in p_low:
+            tema = p_low.replace("ensayo", "").replace("redacta", "").replace("investiga", "").strip()
             
-            with st.status(f"Generando ensayo único sobre {tema}...", expanded=True) as s:
-                info = investigar(tema)
-                st.write("Analizando fuentes y mezclando ideas...")
-                resultado = herramientas.generar_ensayo_unico(tema, info)
-                s.update(label="Ensayo redactado con éxito", state="complete")
+            with st.status(f"Generando respuesta unificada sobre {tema}...") as s:
+                st.write("Consultando múltiples motores...")
+                # USAMOS LA NUEVA FUNCIÓN UNIFICADA
+                info_total = motores_busqueda.buscar_y_unificar(tema)
+                
+                st.write("Sintetizando información única...")
+                if "ensayo" in p_low:
+                    resultado = herramientas.generar_ensayo_unico(tema, info_total)
+                else:
+                    resultado = herramientas.generar_resumen_dinamico(info_total)
+                
+                s.update(label="Análisis completado", state="complete")
             
-            # Efecto de escritura
+            # Efecto de escritura pro
             area = st.empty()
-            acumulado = ""
-            for letra in resultado:
-                acumulado += letra
-                area.markdown(acumulado)
-                time.sleep(0.002)
+            txt = ""
+            for char in resultado:
+                txt += char
+                area.markdown(txt)
+                time.sleep(0.003)
             st.session_state.messages.append({"role": "assistant", "content": resultado})
 
-        # 2. DETECCIÓN DE INTENCIÓN: ¿Quiere un resumen?
-        elif "resume" in p_low or "resumen" in p_low:
-            tema = p_low.replace("resume", "").replace("resumen de", "").strip()
-            with st.spinner("Sintetizando información..."):
-                info = investigar(tema)
-                resultado = herramientas.generar_resumen_dinamico(info)
-                st.markdown(resultado)
-                st.session_state.messages.append({"role": "assistant", "content": resultado})
-
-        # 3. RESPUESTA NORMAL (Búsqueda simple)
+        # 3. RESPUESTA POR DEFECTO
         else:
-            with st.spinner("Buscando información..."):
-                info = investigar(prompt)
-                if info:
-                    res = f"He encontrado esto para ti:\n\n{info[:500]}..."
-                else:
-                    res = "No encontré datos específicos, ¿puedes ser más detallado?"
+            with st.spinner("Buscando en la red..."):
+                info = motores_busqueda.buscar_y_unificar(prompt)
+                res = f"Aquí tienes una síntesis de lo que encontré:\n\n{info[:700]}..." if info else "No tengo info sobre eso."
                 st.markdown(res)
                 st.session_state.messages.append({"role": "assistant", "content": res})
