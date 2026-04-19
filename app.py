@@ -78,7 +78,7 @@ with tab3:
     
 def fetch_krdict(palabra):
 # TIP: Asegúrate de que esta llave sea la correcta
-api_key = st.secrets["api_key"] if "api_key" in st.secrets else "TU_API_KEY_AQUI"
+api_key = st.secrets["api_key"] if "api_key" in st.secrets else "49397A3E25C8A406FA42AEB22AB59C3B"
 
 url = "https://krdict.korean.go.kr/api/search"
 params = {
