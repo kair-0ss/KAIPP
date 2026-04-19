@@ -66,42 +66,31 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- PANTALLA DE CARGA BONITA ---
-if 'initialized' not in st.session_state:
-    placeholder = st.empty()
-    with placeholder.container():
-        st.markdown("""
-            <div class="loading-container">
-                <div class="pulse"></div>
-                <h1 style="font-family: sans-serif; font-weight: 200; margin-top: 30px; letter-spacing: 5px;">kAI</h1>
-                <p style="color: #6c7086; letter-spacing: 2px;">BY: RONALDO</p>
-            </div>
-        """, unsafe_allow_html=True)
-        time.sleep(3)
-    st.session_state.initialized = True
-    placeholder.empty()
-    st.rerun()
+import streamlit as st
+import time
+from duckduckgo_search import DDGS
+import wikipedia
+import herramientas # Tu archivo con la lógica única
 
-# --- LÓGICA DE BÚSQUEDA ---
+# ... (Configuración de página, CSS y pantalla de carga se mantienen igual) ...
+
+# --- FUNCIÓN DE INVESTIGACIÓN ---
 def investigar(query):
     contexto = ""
     try:
-        # Wikipedia rápida
         wikipedia.set_lang("es")
-        contexto += wikipedia.summary(query, sentences=2) + "\n"
+        contexto += wikipedia.summary(query, sentences=3) + "\n"
     except: pass
-    
     try:
-        # DuckDuckGo para info fresca
         with DDGS() as ddgs:
-            results = [r for r in ddgs.text(query, max_results=2)]
-            for r in results:
-                contexto += f"\nFuente Web: {r['body']}"
+            results = [r for r in ddgs.text(query, max_results=3)]
+            for r in results: contexto += r['body'] + " "
     except: pass
     return contexto
 
-# --- INTERFAZ DE USUARIO ---
-st.markdown("<h2 style='text-align: center; font-weight: 200;'>¿Qué investigamos hoy?</h2>", unsafe_allow_html=True)
+# --- INTERFAZ DE CHAT ---
+st.title("🤖 kAI")
+st.caption("Investigación y Redacción Automática")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -111,37 +100,50 @@ for m in st.session_state.messages:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
 
-# Entrada de texto
-if prompt := st.chat_input("Escribe tu duda aquí..."):
+# Entrada de usuario
+if prompt := st.chat_input("¿Qué necesitas? (Ej: Hazme un ensayo sobre la Luna)"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        # Lo que hace única a la app: El proceso de pensamiento visible
-        with st.status("🔮 Conectando con la red...", expanded=True) as status:
-            st.write("Buscando en Wikipedia...")
-            info = investigar(prompt)
-            time.sleep(1)
-            st.write("Cruzando datos web...")
-            time.sleep(1)
-            status.update(label="Investigación finalizada", state="complete", expanded=False)
+        p_low = prompt.lower()
         
-        # Respuesta final construida
-        if info:
-            respuesta = f"Basado en mi investigación sobre **{prompt}**:\n\n{info}\n\n--- \n*Respuesta generada por kAI (By Ronaldo)*"
-        else:
-            respuesta = "No pude encontrar datos específicos en la red, pero cuéntame más para ayudarte."
+        # 1. DETECCIÓN DE INTENCIÓN: ¿Quiere un ensayo?
+        if "ensayo" in p_low or "redacta" in p_low:
+            tema = p_low.replace("hazme un ensayo sobre", "").replace("ensayo sobre", "").replace("haz un ensayo de", "").strip()
             
-        st.markdown(respuesta)
-        st.session_state.messages.append({"role": "assistant", "content": respuesta})
+            with st.status(f"Generando ensayo único sobre {tema}...", expanded=True) as s:
+                info = investigar(tema)
+                st.write("Analizando fuentes y mezclando ideas...")
+                resultado = herramientas.generar_ensayo_unico(tema, info)
+                s.update(label="Ensayo redactado con éxito", state="complete")
+            
+            # Efecto de escritura
+            area = st.empty()
+            acumulado = ""
+            for letra in resultado:
+                acumulado += letra
+                area.markdown(acumulado)
+                time.sleep(0.002)
+            st.session_state.messages.append({"role": "assistant", "content": resultado})
 
-# Botón flotante para limpiar (Sidebar)
-with st.sidebar:
-    st.markdown("### ⚙️ Panel kAI")
-    if st.button("Limpiar Memoria"):
-        st.session_state.messages = []
-        st.rerun()
-    st.write("---")
-    st.caption("Versión Escolar 1.0")
-    st.caption("Desarrollado en Venezuela")
+        # 2. DETECCIÓN DE INTENCIÓN: ¿Quiere un resumen?
+        elif "resume" in p_low or "resumen" in p_low:
+            tema = p_low.replace("resume", "").replace("resumen de", "").strip()
+            with st.spinner("Sintetizando información..."):
+                info = investigar(tema)
+                resultado = herramientas.generar_resumen_dinamico(info)
+                st.markdown(resultado)
+                st.session_state.messages.append({"role": "assistant", "content": resultado})
+
+        # 3. RESPUESTA NORMAL (Búsqueda simple)
+        else:
+            with st.spinner("Buscando información..."):
+                info = investigar(prompt)
+                if info:
+                    res = f"He encontrado esto para ti:\n\n{info[:500]}..."
+                else:
+                    res = "No encontré datos específicos, ¿puedes ser más detallado?"
+                st.markdown(res)
+                st.session_state.messages.append({"role": "assistant", "content": res})
