@@ -76,50 +76,78 @@ with tab3:
         "Puntos": [4500, 3100, 1250, 400]
     })
     
+import streamlit as st
+import requests
+import xml.etree.ElementTree as ET
+from styles import apply_styles
+
+# Aplicar diseño
+apply_styles()
+
+# --- FUNCIONES DE API ---
 def fetch_krdict(palabra):
-# TIP: Asegúrate de que esta llave sea la correcta
-api_key = st.secrets["KEYW"] if "KEYW" in st.secrets else "49397A3E25C8A406FA42AEB22AB59C3B"
-
-url = "https://krdict.korean.go.kr/api/search"
-params = {
-    'key': api_key,
-    'q': palabra,
-    'translated': 'y',
-    'trans_lang': 5,  # 5 es Español
-    'part': 'word',
-    'sort': 'popular',
-    'method': 'exact' # Cambiado a 'exact' para búsquedas más precisas
-}
-
-try:
-    response = requests.get(url, params=params, timeout=10)
-    # Si la API responde pero con error de clave
-    if response.status_code != 200:
-        st.error(f"Error de servidor: {response.status_code}")
-        return None
-        
-    root = ET.fromstring(response.content)
+    # LA SIGUIENTE LÍNEA DEBE TENER 4 ESPACIOS DE SANGRÍA (INDENTACIÓN)
+    if "KEYW" in st.secrets:
+        api_key = st.secrets["KEYW"]
+    else:
+        api_key = "49397A3E25C8A406FA42AEB22AB59C3B"
     
-    # Verificar si la API devolvió un mensaje de error en el XML
-    error_msg = root.find('message')
-    if error_msg is not None:
-        st.warning(f"Diccionario dice: {error_msg.text}")
+    url = "https://krdict.korean.go.kr/api/search"
+    params = {
+        'key': api_key,
+        'q': palabra,
+        'translated': 'y',
+        'trans_lang': 5, # 5 = Español
+        'part': 'word',
+        'sort': 'popular',
+        'method': 'exact'
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        if response.status_code != 200:
+            return None
+            
+        root = ET.fromstring(response.content)
+        resultados = []
+        
+        for item in root.findall('.//item'):
+            # Extraemos la definición traducida al español
+            definition = "Sin definición"
+            trans_res = item.find('.//trans_dfn')
+            if trans_res is not None:
+                definition = trans_res.text
+                
+            data = {
+                'word': item.find('word').text if item.find('word') is not None else "N/A",
+                'def': definition,
+                'pos': item.find('pos').text if item.find('pos') is not None else "Sustantivo"
+            }
+            resultados.append(data)
+        return resultados
+    except Exception as e:
         return None
 
-    resultados = []
-    for item in root.findall('.//item'):
-        # Buscamos la traducción específicamente en español
-        trans_item = item.find(".//translation/[trans_lang='5']")
-        
-        word_data = {
-            'word': item.find('word').text if item.find('word') is not None else "N/A",
-            'def': item.find('.//trans_dfn').text if item.find('.//trans_dfn') is not None else "Sin definición disponible",
-            'pos': item.find('pos').text if item.find('pos') is not None else "Sustantivo"
-        }
-        resultados.append(word_data)
-    
-    return resultados
+# --- RESTO DE LA INTERFAZ (Alineado al margen izquierdo) ---
+st.title("🌿 K-Vocab TrainerPro")
 
-except Exception as e:
-    st.error(f"Error de conexión: {e}")
-    return None
+tab1, tab2, tab3 = st.tabs(["🗂 Aprender", "🎬 K-Drama Mode", "🏆 Ranking"])
+
+with tab1:
+    search = st.text_input("Busca una palabra en Hangeul:", placeholder="Ej: 하늘")
+    
+    if search:
+        res = fetch_krdict(search)
+        if res:
+            for item in res[:1]:
+                st.markdown(f"""
+                <div class="flashcard">
+                    <p style="color: #8c7851; font-size: 14px; text-transform: uppercase;">Resultado Oficial</p>
+                    <div class="korean-text">{item['word']}</div>
+                    <p style="font-style: italic; color: #a0a0a0;">({item['pos']})</p>
+                    <hr style="border: 0.5px solid #f0f0f0; margin: 20px 0;">
+                    <p style="font-size: 20px; color: #2c362e;">{item['def']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.warning("No se encontraron resultados. Verifica que la búsqueda sea en coreano.")
