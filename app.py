@@ -75,3 +75,51 @@ with tab3:
         "Racha": ["45 🔥", "30 🔥", "12 🔥", "5 🔥"],
         "Puntos": [4500, 3100, 1250, 400]
     })
+    
+def fetch_krdict(palabra):
+# TIP: Asegúrate de que esta llave sea la correcta
+api_key = st.secrets["KRDICT_KEY"] if "KRDICT_KEY" in st.secrets else "TU_API_KEY_AQUI"
+
+url = "https://krdict.korean.go.kr/api/search"
+params = {
+    'key': api_key,
+    'q': palabra,
+    'translated': 'y',
+    'trans_lang': 5,  # 5 es Español
+    'part': 'word',
+    'sort': 'popular',
+    'method': 'exact' # Cambiado a 'exact' para búsquedas más precisas
+}
+
+try:
+    response = requests.get(url, params=params, timeout=10)
+    # Si la API responde pero con error de clave
+    if response.status_code != 200:
+        st.error(f"Error de servidor: {response.status_code}")
+        return None
+        
+    root = ET.fromstring(response.content)
+    
+    # Verificar si la API devolvió un mensaje de error en el XML
+    error_msg = root.find('message')
+    if error_msg is not None:
+        st.warning(f"Diccionario dice: {error_msg.text}")
+        return None
+
+    resultados = []
+    for item in root.findall('.//item'):
+        # Buscamos la traducción específicamente en español
+        trans_item = item.find(".//translation/[trans_lang='5']")
+        
+        word_data = {
+            'word': item.find('word').text if item.find('word') is not None else "N/A",
+            'def': item.find('.//trans_dfn').text if item.find('.//trans_dfn') is not None else "Sin definición disponible",
+            'pos': item.find('pos').text if item.find('pos') is not None else "Sustantivo"
+        }
+        resultados.append(word_data)
+    
+    return resultados
+
+except Exception as e:
+    st.error(f"Error de conexión: {e}")
+    return None
