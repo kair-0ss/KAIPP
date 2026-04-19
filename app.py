@@ -1,64 +1,147 @@
 import streamlit as st
-import requests
 import time
+import requests
+from duckduckgo_search import DDGS
+import wikipedia
 
-st.set_page_config(page_title="kAI - Presentación", page_icon="🤖")
+# --- CONFIGURACIÓN E INNOVACIÓN VISUAL ---
+st.set_page_config(page_title="kAI | Intelligence", page_icon="✨", layout="centered")
 
-# --- CSS MINIMALISTA ---
-st.markdown("""<style>
-    .stApp { background-color: #ffffff; }
-    .main-title { font-size: 3rem; font-weight: 100; text-align: center; color: #000; }
+# CSS para una interfaz única tipo "Glassmorphism"
+st.markdown("""
+    <style>
+    /* Fondo principal oscuro profundo */
+    .stApp {
+        background: radial-gradient(circle at top right, #1e1e2e, #11111b);
+        color: #cdd6f4;
+    }
+    
+    /* Personalización del Chat Input */
+    .stChatInputContainer {
+        padding-bottom: 20px;
+        background-color: transparent !important;
+    }
+    
+    .stChatInputContainer > div {
+        background-color: #1e1e2e !important;
+        border: 1px solid #45475a !important;
+        border-radius: 25px !important;
+    }
+
+    /* Burbujas de chat únicas */
+    .stChatMessage {
+        background-color: #181825 !important;
+        border: 1px solid #313244 !important;
+        border-radius: 20px !important;
+        margin-bottom: 15px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+
+    /* Ocultar elementos de Streamlit */
+    #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-</style>""", unsafe_allow_html=True)
+    header {visibility: hidden;}
 
-# --- PANTALLA DE CARGA ---
-if 'init' not in st.session_state:
-    with st.empty():
-        st.markdown(f"<div style='text-align:center;margin-top:20vh;'><h1>kAI</h1><p>BY: RONALDO</p></div>", unsafe_allow_html=True)
-        time.sleep(2)
-        st.session_state.init = True
+    /* Animación del Loader */
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 80vh;
+    }
+    .pulse {
+        width: 80px;
+        height: 80px;
+        background: #89b4fa;
+        border-radius: 50%;
+        box-shadow: 0 0 0 0 rgba(137, 180, 250, 0.7);
+        animation: pulse-blue 2s infinite;
+    }
+    @keyframes pulse-blue {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(137, 180, 250, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(137, 180, 250, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(137, 180, 250, 0); }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- PANTALLA DE CARGA BONITA ---
+if 'initialized' not in st.session_state:
+    placeholder = st.empty()
+    with placeholder.container():
+        st.markdown("""
+            <div class="loading-container">
+                <div class="pulse"></div>
+                <h1 style="font-family: sans-serif; font-weight: 200; margin-top: 30px; letter-spacing: 5px;">kAI</h1>
+                <p style="color: #6c7086; letter-spacing: 2px;">BY: RONALDO</p>
+            </div>
+        """, unsafe_allow_html=True)
+        time.sleep(3)
+    st.session_state.initialized = True
+    placeholder.empty()
     st.rerun()
 
-import streamlit as st
-import requests
-import time
+# --- LÓGICA DE BÚSQUEDA ---
+def investigar(query):
+    contexto = ""
+    try:
+        # Wikipedia rápida
+        wikipedia.set_lang("es")
+        contexto += wikipedia.summary(query, sentences=2) + "\n"
+    except: pass
+    
+    try:
+        # DuckDuckGo para info fresca
+        with DDGS() as ddgs:
+            results = [r for r in ddgs.text(query, max_results=2)]
+            for r in results:
+                contexto += f"\nFuente Web: {r['body']}"
+    except: pass
+    return contexto
 
-# ... (Configuración de página y CSS se mantienen igual) ...
+# --- INTERFAZ DE USUARIO ---
+st.markdown("<h2 style='text-align: center; font-weight: 200;'>¿Qué investigamos hoy?</h2>", unsafe_allow_html=True)
 
-# --- CONFIGURACIÓN HUGGING FACE ---
-# Asegúrate de tener HF_TOKEN en los Secrets de Streamlit
-API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
-headers = {"Authorization": f"Bearer {st.secrets['HF_TOKEN']}"}
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-def query(payload):
-    # Intentamos hasta 3 veces por si el modelo está despertando
-    for _ in range(3):
-        response = requests.post(API_URL, headers=headers, json=payload)
-        try:
-            return response.json()
-        except:
-            # Si no es JSON, esperamos 5 segundos y reintentamos
-            time.sleep(5)
-    return None
+# Mostrar historial
+for m in st.session_state.messages:
+    with st.chat_message(m["role"]):
+        st.markdown(m["content"])
 
-# --- CUERPO DEL CHAT ---
-if prompt := st.chat_input("Escribe algo..."):
+# Entrada de texto
+if prompt := st.chat_input("Escribe tu duda aquí..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("kAI está pensando..."):
-            data = query({
-                "inputs": f"<s>[INST] {prompt} [/INST]",
-                "parameters": {"max_new_tokens": 500, "wait_for_model": True} # <--- IMPORTANTE
-            })
+        # Lo que hace única a la app: El proceso de pensamiento visible
+        with st.status("🔮 Conectando con la red...", expanded=True) as status:
+            st.write("Buscando en Wikipedia...")
+            info = investigar(prompt)
+            time.sleep(1)
+            st.write("Cruzando datos web...")
+            time.sleep(1)
+            status.update(label="Investigación finalizada", state="complete", expanded=False)
+        
+        # Respuesta final construida
+        if info:
+            respuesta = f"Basado en mi investigación sobre **{prompt}**:\n\n{info}\n\n--- \n*Respuesta generada por kAI (By Ronaldo)*"
+        else:
+            respuesta = "No pude encontrar datos específicos en la red, pero cuéntame más para ayudarte."
             
-            if data and isinstance(data, list) and 'generated_text' in data[0]:
-                res_text = data[0]['generated_text'].split('[/INST]')[-1].strip()
-                st.markdown(res_text)
-                st.session_state.messages.append({"role": "assistant", "content": res_text})
-            elif data and 'error' in data:
-                st.error(f"El modelo se está cargando. Por favor, espera 20 segundos y vuelve a intentar. (Error: {data['error']})")
-            else:
-                st.error("Lo siento, hubo un problema de conexión con el servidor. Inténtalo de nuevo.")
+        st.markdown(respuesta)
+        st.session_state.messages.append({"role": "assistant", "content": respuesta})
+
+# Botón flotante para limpiar (Sidebar)
+with st.sidebar:
+    st.markdown("### ⚙️ Panel kAI")
+    if st.button("Limpiar Memoria"):
+        st.session_state.messages = []
+        st.rerun()
+    st.write("---")
+    st.caption("Versión Escolar 1.0")
+    st.caption("Desarrollado en Venezuela")
